@@ -28,25 +28,62 @@ const userSchema = new schema({
           required:true,
           minlength:6,
           maxlength: 128
-     }
+     },
+     tokens:[{
+          token:{
+               type:String
+          },
+          CreatedAt:{
+               type:Date,
+               default:Date.now
+          }
+     }]
+
+     
 })
-
-const User = mongoose.model('User', userSchema)
-
 
 //pre hooks
-userSchema.pre('save', (next)=>{
-     console.log('just before saving')
-     // const user = this
-     // console.log(user)
-     // bcryptjs.genSalt(10)
-     //      .then((salt)=>{
-     //           bcryptjs.hash(user.password, salt)
-     //                .then((encryptedPassword)=>{
-     //                     user.password = encryptedPassword
-     //                     next()
-     //                })
-     //      })
+userSchema.pre('save', function(next){
+     const user = this
+     //console.log(user)
+     if(user.isNew){
+          bcryptjs.genSalt(10)
+          .then((salt)=>{
+               bcryptjs.hash(user.password, salt)
+                    .then((encryptedPassword)=>{
+                         user.password = encryptedPassword
+                         next()
+                    })
+          })
+     } else {
+          next()
+     }
+     
 })
+
+//static findByCredentials()
+userSchema.statics.findByCredentials = function(email, password){
+     const User = this
+     return User.findOne({ email })
+          .then((user)=>{
+               if(!user){
+                    return Promise.reject('invalid email/password')
+               }
+               return bcryptjs.compare(password, user.password)
+                    .then((result)=>{
+                         if(result){
+                              return Promise.resolve(user)
+                         } else {
+                              return Promise.reject('invalid email/password')
+                         }
+                    })
+          })
+          .catch((err)=>{
+               return Promise.reject(err)
+          })
+}
+
+
+const User = mongoose.model('User', userSchema)
 
 module.exports = {User}
