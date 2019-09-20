@@ -2,6 +2,7 @@ const mongoose = require('mongoose')
 const validator = require('validator')
 const schema = mongoose.Schema
 const bcryptjs = require('bcryptjs')
+const jwt = require('jsonwebtoken')
 
 const userSchema = new schema({
      username:{
@@ -42,24 +43,6 @@ const userSchema = new schema({
      
 })
 
-//pre hooks
-userSchema.pre('save', function(next){
-     const user = this
-     //console.log(user)
-     if(user.isNew){
-          bcryptjs.genSalt(10)
-          .then((salt)=>{
-               bcryptjs.hash(user.password, salt)
-                    .then((encryptedPassword)=>{
-                         user.password = encryptedPassword
-                         next()
-                    })
-          })
-     } else {
-          next()
-     }
-     
-})
 
 //static findByCredentials()
 userSchema.statics.findByCredentials = function(email, password){
@@ -83,6 +66,60 @@ userSchema.statics.findByCredentials = function(email, password){
           })
 }
 
+userSchema.statics.findByToken = function(token){
+     const user = this
+     let tokenData
+     try{
+          tokenData=jwt.verify(token,'jwt@123')
+
+     } catch(err){
+          return Promise.reject(err)
+     }
+     return user.findOne({
+          _id:tokenData._id,
+          'tokens.token':token
+     })
+}
+
+//Instance method
+userSchema.methods.generateToken = function(){
+     const user = this
+     const tokenData = {
+          _id: user._id,
+          username: user.username,
+          CreatedAt: Date.now()
+     }
+     const token = jwt.sign(tokenData,'jwt@123')
+     user.tokens.push({ 
+          token
+     })
+     console.log('saving')
+     return user.save()
+          .then((user)=>{
+               return Promise.resolve(token)
+          })
+          .catch((err)=>{
+               return Promise.reject(err)
+          })
+}
+
+//pre hooks
+userSchema.pre('save', function(next){
+     const user = this
+     if(user.isNew){
+          bcryptjs.genSalt(10)
+          .then((salt)=>{
+               bcryptjs.hash(user.password, salt)
+                    .then((encryptedPassword)=>{
+                         user.password = encryptedPassword
+                         next()
+                    })
+          })
+     } else {
+          next()
+     }
+     
+})
 
 const User = mongoose.model('User', userSchema)
 
