@@ -1,4 +1,4 @@
-# JWT-Authentication
+# JWT-Authentication-MongoDB
 This repo include below APIs for user to register, login, check profile/account information and logout.
 
     localhost:3000/users/register
